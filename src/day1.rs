@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::filereading;
 
 const PATH: &str = "src/inputs/day1.txt";
@@ -23,7 +25,7 @@ impl NumberPair {
     }
 }
 
-fn _a() {
+fn a() {
     let mut sum = 0;
 
     let lines = filereading::get_lines(PATH);
