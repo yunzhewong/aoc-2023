@@ -1,5 +1,5 @@
 mod day1;
-mod read;
+mod filereading;
 
 fn main() {
     day1::run()

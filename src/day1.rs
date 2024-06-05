@@ -1,4 +1,4 @@
-use crate::read;
+use crate::filereading;
 
 const PATH: &str = "src/inputs/day1.txt";
 struct NumberPair {
@@ -23,10 +23,10 @@ impl NumberPair {
     }
 }
 
-fn a() {
+fn _a() {
     let mut sum = 0;
 
-    let lines = read::get_lines(PATH);
+    let lines = filereading::get_lines(PATH);
     for line in lines.map_while(Result::ok) {
         let mut possible_pair: Option<NumberPair> = None;
         for character in line.chars() {
@@ -47,41 +47,53 @@ fn a() {
     println!("{sum}")
 }
 
+fn update_possible_pair(possible_pair: &mut Option<NumberPair>, val: usize) {
+    match possible_pair {
+        Some(ref mut pair) => pair.update_val(val),
+        None => *possible_pair = Some(NumberPair::first_val(val)),
+    }
+}
+
 fn b() {
     let mut sum = 0;
     let options = [
         "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
     ];
 
-    let lines = read::get_lines(PATH);
+    let lines = filereading::get_lines(PATH);
     for line in lines.map_while(Result::ok) {
         let mut possible_pair: Option<NumberPair> = None;
 
         let chars: Vec<char> = line.chars().collect();
-        for (start, character) in chars.iter().enumerate() {
-            for (option_index, option) in options.iter().enumerate() {
-                let end = start + option.len();
+        let mut char_index = 0;
+        while char_index < chars.len() {
+            let character = chars[char_index];
+            let mut string_matched = false;
+
+            for (i, option) in options.iter().enumerate() {
+                let end = char_index + option.len();
                 if end > chars.len() {
                     continue;
                 }
-                let section = chars[start..end].iter().collect::<String>();
+                let section = chars[char_index..end].iter().collect::<String>();
                 if *option == section {
-                    let value = option_index + 1;
-                    match possible_pair {
-                        Some(ref mut pair) => pair.update_val(value),
-                        None => possible_pair = Some(NumberPair::first_val(value)),
-                    }
+                    let value = i + 1;
+                    update_possible_pair(&mut possible_pair, value);
+                    char_index += option.len() - 1;
+                    string_matched = true;
+                    break;
                 }
+            }
+
+            if string_matched {
+                continue;
             }
 
             let parsed_value = character.to_string().parse::<usize>();
-
             if let Ok(val) = parsed_value {
-                match possible_pair {
-                    Some(ref mut pair) => pair.update_val(val),
-                    None => possible_pair = Some(NumberPair::first_val(val)),
-                }
+                update_possible_pair(&mut possible_pair, val)
             }
+            char_index += 1
         }
 
         if let Some(pair) = possible_pair {
