@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::str::FromStr;
 
 use crate::filereading;
@@ -22,7 +24,27 @@ struct GameRound {
     blue: usize,
 }
 
+fn maximum(x1: usize, x2: usize) -> usize {
+    if x1 > x2 {
+        x1
+    } else {
+        x2
+    }
+}
+
 impl GameRound {
+    fn get_minimum(&self, other: &GameRound) -> GameRound {
+        let minimum_blue = maximum(self.blue, other.blue);
+        let minimum_red = maximum(self.red, other.red);
+        let minimum_green = maximum(self.green, other.green);
+
+        GameRound {
+            red: minimum_red,
+            blue: minimum_blue,
+            green: minimum_green,
+        }
+    }
+
     fn larger_than(&self, other: &GameRound) -> bool {
         if self.blue > other.blue {
             return true;
@@ -37,6 +59,10 @@ impl GameRound {
         }
 
         false
+    }
+
+    fn get_power(&self) -> usize {
+        self.red * self.blue * self.green
     }
 }
 #[derive(Debug)]
@@ -82,8 +108,8 @@ fn a() {
 
     let mut sum: usize = 0;
 
-    for line in lines.map_while(Result::ok) {
-        let (id, rest) = extract_id(line);
+    for line in lines.into_iter() {
+        let (id, rest) = extract_id(line.expect("Line does not exist"));
 
         let rounds = rest
             .split(';')
@@ -104,6 +130,28 @@ fn a() {
 
     println!("{sum}")
 }
+
+fn b() {
+    let lines = filereading::get_lines("src/inputs/day2.txt");
+
+    let mut sum: usize = 0;
+
+    for line in lines.into_iter() {
+        let (_id, rest) = extract_id(line.expect("Line does not exist"));
+
+        let mut rounds = rest
+            .split(';')
+            .map(|round| GameRound::from_str(round).expect("Round not parsed"));
+
+        let mut lowest_round = rounds.next().expect("At least one round expected");
+        for round in rounds {
+            lowest_round = lowest_round.get_minimum(&round)
+        }
+        sum += lowest_round.get_power()
+    }
+
+    println!("{sum}")
+}
 pub fn run() {
-    a()
+    b()
 }
