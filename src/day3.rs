@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::filereading;
 
 fn found_other(lines: &[String], index: i32, start: usize, end: usize) -> bool {
