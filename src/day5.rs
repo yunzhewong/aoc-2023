@@ -78,12 +78,18 @@ fn a() {
     let mut current_group = seeds;
     let mut next_group: Vec<i64> = vec![];
     for map_group in map_groups {
-        for map in map_group {
-            for &value in current_group.iter() {
+        for &value in current_group.iter() {
+            let mut matched_res: Option<i64> = None;
+            for map in map_group.iter() {
                 match map.get(value) {
                     None => {}
-                    Some(res) => next_group.push(res),
+                    Some(res) => matched_res = Some(res),
                 };
+            }
+
+            match matched_res {
+                None => next_group.push(value),
+                Some(res) => next_group.push(res),
             }
         }
 
