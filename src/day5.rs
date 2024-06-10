@@ -1,4 +1,4 @@
-use std::{i64::MAX, str::FromStr};
+use std::{cmp::max, i64::MAX, str::FromStr};
 
 use crate::filereading;
 
@@ -27,6 +27,12 @@ impl FromStr for Map {
     }
 }
 
+#[derive(Debug, Clone)]
+struct Range {
+    start: i64,
+    length: i64,
+}
+
 impl Map {
     fn get(&self, val: i64) -> Option<i64> {
         if val < self.source_start || val >= self.source_start + self.range_length {
@@ -37,10 +43,51 @@ impl Map {
 
         Some(self.destination_start + offset)
     }
+
+    fn get_range(&self, range: &Range) -> Option<(Range, Vec<Range>)> {
+        if range.start + range.length <= self.source_start
+            || self.source_start + self.range_length <= range.length
+        {
+            return None;
+        }
+
+        let range_end_index = range.start + range.length - 1;
+        let source_end_index = self.source_start + self.range_length - 1;
+
+        let map_start = max(range.start, self.source_start);
+        let map_end = std::cmp::min(range_end_index, source_end_index);
+
+        let map_length = map_end - map_start + 1;
+        let mapped_range = Range {
+            start: map_start,
+            length: map_length,
+        };
+
+        let mut uncaptured: Vec<Range> = vec![];
+        let uncaptured_start_length = map_start - range.start;
+
+        if uncaptured_start_length > 0 {
+            uncaptured.push(Range {
+                start: range.start,
+                length: uncaptured_start_length,
+            })
+        }
+
+        let uncaptured_end_length = range_end_index - map_end;
+
+        if uncaptured_end_length > 0 {
+            uncaptured.push(Range {
+                start: map_end,
+                length: uncaptured_end_length,
+            });
+        }
+
+        Some((mapped_range, uncaptured))
+    }
 }
 
 fn get_map_groups() -> (Vec<i64>, Vec<Vec<Map>>) {
-    let mut lines = filereading::get_lines("src/inputs/day5.txt");
+    let mut lines = filereading::get_lines("src/inputs/day5e.txt");
 
     let first_line = lines.next().unwrap().unwrap();
 
@@ -107,6 +154,53 @@ fn a() {
     println!("{min}")
 }
 
+fn b() {
+    let (seeds, map_groups) = get_map_groups();
+
+    let mut seed_ranges: Vec<Range> = vec![];
+    for i in 0..(seeds.len() / 2) {
+        seed_ranges.push(Range {
+            start: seeds[i],
+            length: seeds[i + 1],
+        })
+    }
+
+    let mut current_ranges: Vec<Range> = seed_ranges;
+    let mut next_ranges: Vec<Range> = vec![];
+    for map_group in map_groups {
+        for range in current_ranges.iter() {
+            let mut check_ranges = vec![range.clone()];
+            let mut matched_res: Option<Range> = None;
+            for map in map_group.iter() {
+                let mut new_ranges: Vec<Range> = vec![];
+
+                for checked_range in check_ranges {
+                    match map.get_range(&checked_range) {
+                        None => {}
+                        Some((res_range, uncaptured)) => {
+                            new_ranges.extend(uncaptured);
+                            matched_res = Some(res_range);
+                            break;
+                        }
+                    }
+                }
+
+                check_ranges = new_ranges;
+            }
+
+            match matched_res {
+                None => next_ranges.push(range.clone()),
+                Some(res) => next_ranges.push(res),
+            }
+        }
+
+        current_ranges.clone_from(&next_ranges);
+        next_ranges.clear();
+
+        println!("{:?}", current_ranges)
+    }
+}
+
 pub fn run() {
-    a();
+    b();
 }
