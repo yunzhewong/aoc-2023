@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::{
     cmp::{max, min},
     i64::MAX,
