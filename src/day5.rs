@@ -2,7 +2,7 @@ use std::{cmp::max, i64::MAX, str::FromStr};
 
 use crate::filereading;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Map {
     destination_start: i64,
     source_start: i64,
@@ -44,45 +44,48 @@ impl Map {
         Some(self.destination_start + offset)
     }
 
-    fn get_range(&self, range: &Range) -> Option<(Range, Vec<Range>)> {
-        if range.start + range.length <= self.source_start
-            || self.source_start + self.range_length <= range.length
-        {
+    fn get_overlap(&self, range: &Range) -> Option<(Range, Vec<Range>)> {
+        let range_end_index = range.start + range.length - 1;
+        let map_end_index = self.source_start + self.range_length - 1;
+
+        let overlap_start_index = max(range.start, self.source_start);
+        let overlap_end_index = std::cmp::min(range_end_index, map_end_index);
+
+        println!("{:?} {:?}", range, self);
+        println!("{overlap_start_index} {overlap_end_index}");
+
+        let overlap_length = overlap_end_index - overlap_start_index + 1;
+
+        if overlap_length < 0 {
             return None;
         }
-
-        let range_end_index = range.start + range.length - 1;
-        let source_end_index = self.source_start + self.range_length - 1;
-
-        let map_start = max(range.start, self.source_start);
-        let map_end = std::cmp::min(range_end_index, source_end_index);
-
-        let map_length = map_end - map_start + 1;
-        let mapped_range = Range {
-            start: map_start,
-            length: map_length,
+        let offset = self.destination_start - self.source_start;
+        let changed_range = Range {
+            start: overlap_start_index + offset,
+            length: overlap_length,
         };
 
-        let mut uncaptured: Vec<Range> = vec![];
-        let uncaptured_start_length = map_start - range.start;
+        let mut others: Vec<Range> = vec![];
 
-        if uncaptured_start_length > 0 {
-            uncaptured.push(Range {
+        let length_missed_before = overlap_start_index - range.start;
+
+        if length_missed_before > 0 {
+            others.push(Range {
                 start: range.start,
-                length: uncaptured_start_length,
+                length: length_missed_before,
             })
         }
 
-        let uncaptured_end_length = range_end_index - map_end;
+        let length_missed_after = range_end_index - overlap_end_index;
 
-        if uncaptured_end_length > 0 {
-            uncaptured.push(Range {
-                start: map_end,
-                length: uncaptured_end_length,
-            });
+        if length_missed_after > 0 {
+            others.push(Range {
+                start: overlap_end_index + 1,
+                length: length_missed_after,
+            })
         }
 
-        Some((mapped_range, uncaptured))
+        Some((changed_range, others))
     }
 }
 
@@ -168,36 +171,33 @@ fn b() {
     let mut current_ranges: Vec<Range> = seed_ranges;
     let mut next_ranges: Vec<Range> = vec![];
     for map_group in map_groups {
-        for range in current_ranges.iter() {
-            let mut check_ranges = vec![range.clone()];
-            let mut matched_res: Option<Range> = None;
-            for map in map_group.iter() {
-                let mut new_ranges: Vec<Range> = vec![];
+        for &range in current_ranges.iter() {
+            let mut ranges_to_map = vec![range];
 
-                for checked_range in check_ranges {
-                    match map.get_range(&checked_range) {
+            while ranges_to_map.len() > 0 {
+                let range_to_map = ranges_to_map[0];
+
+                let mut mapped_range: Option<Range> = None;
+                for map in map_group.iter() {
+                    match map.get_overlap(&range_to_map) {
                         None => {}
                         Some((res_range, uncaptured)) => {
-                            new_ranges.extend(uncaptured);
-                            matched_res = Some(res_range);
+                            ranges_to_map.extend(uncaptured);
+                            mapped_range = Some(res_range);
                             break;
                         }
                     }
                 }
 
-                check_ranges = new_ranges;
-            }
-
-            match matched_res {
-                None => next_ranges.push(range.clone()),
-                Some(res) => next_ranges.push(res),
+                match mapped_range {
+                    None => next_ranges.push(range_to_map.clone()),
+                    Some(res) => next_ranges.push(res),
+                }
             }
         }
 
         current_ranges.clone_from(&next_ranges);
         next_ranges.clear();
-
-        println!("{:?}", current_ranges)
     }
 }
 
