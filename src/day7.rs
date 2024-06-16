@@ -48,157 +48,36 @@ impl Card {
     }
 }
 
+#[derive(Debug, Eq, PartialEq, PartialOrd)]
+enum HandType {
+    FiveOfAKind,
+    FourOfAKind,
+    FullHouse,
+    ThreeOfAKind,
+    TwoPair,
+    OnePair,
+    HighCard,
+}
+
 #[derive(Debug, Eq, PartialEq)]
-enum Hand {
-    FiveOfAKind {
-        quint: Card,
-    },
-    FourOfAKind {
-        quad: Card,
-        single: Card,
-    },
-    FullHouse {
-        trip: Card,
-        doub: Card,
-    },
-    ThreeOfAKind {
-        trip: Card,
-        rest: Vec<Card>,
-    },
-    TwoPair {
-        double_1: Card,
-        double_2: Card,
-        last: Card,
-    },
-    OnePair {
-        double: Card,
-        rest: Vec<Card>,
-    },
-    HighCard {
-        cards: Vec<Card>,
-    },
+struct Hand {
+    hand_type: HandType,
+    cards: Vec<Card>,
 }
 
 impl Ord for Hand {
     fn cmp(&self, other: &Self) -> Ordering {
-        match (self, other) {
-            (Hand::FiveOfAKind { quint: quint1 }, Hand::FiveOfAKind { quint: quint2 }) => {
-                quint2.cmp(quint1)
-            }
-            (Hand::FiveOfAKind { .. }, _) => Ordering::Greater,
-            (_, Hand::FiveOfAKind { .. }) => Ordering::Less,
-            (
-                Hand::FourOfAKind {
-                    quad: quad1,
-                    single: single1,
-                },
-                Hand::FourOfAKind {
-                    quad: quad2,
-                    single: single2,
-                },
-            ) => {
-                if quad1.label == quad2.label {
-                    single2.cmp(single1)
-                } else {
-                    quad2.cmp(quad1)
+        if self.hand_type > other.hand_type {
+            Ordering::Greater
+        } else if self.hand_type < other.hand_type {
+            Ordering::Less
+        } else {
+            for i in 0..self.cards.len() {
+                if self.cards[i] != other.cards[i] {
+                    return self.cards[i].cmp(&other.cards[i]);
                 }
             }
-            (Hand::FourOfAKind { .. }, _) => Ordering::Greater,
-            (_, Hand::FourOfAKind { .. }) => Ordering::Less,
-            (
-                Hand::FullHouse {
-                    trip: trip1,
-                    doub: doub1,
-                },
-                Hand::FullHouse {
-                    trip: trip2,
-                    doub: doub2,
-                },
-            ) => {
-                if trip1.label == trip2.label {
-                    doub2.cmp(doub1)
-                } else {
-                    trip2.cmp(trip1)
-                }
-            }
-            (Hand::FullHouse { .. }, _) => Ordering::Greater,
-            (_, Hand::FullHouse { .. }) => Ordering::Less,
-            (
-                Hand::ThreeOfAKind {
-                    trip: trip1,
-                    rest: rest1,
-                },
-                Hand::ThreeOfAKind {
-                    trip: trip2,
-                    rest: rest2,
-                },
-            ) => {
-                if trip1.label != trip2.label {
-                    trip2.cmp(trip1)
-                } else {
-                    for i in 0..rest1.len() {
-                        if rest1[i] != rest2[i] {
-                            return rest2.cmp(rest1);
-                        }
-                    }
-                    Ordering::Equal
-                }
-            }
-            (Hand::ThreeOfAKind { .. }, _) => Ordering::Greater,
-            (_, Hand::ThreeOfAKind { .. }) => Ordering::Less,
-            (
-                Hand::TwoPair {
-                    double_1: double_1_1,
-                    double_2: double_2_1,
-                    last: last1,
-                },
-                Hand::TwoPair {
-                    double_1: double_1_2,
-                    double_2: double_2_2,
-                    last: last2,
-                },
-            ) => {
-                if double_1_1.label != double_1_2.label {
-                    double_1_2.cmp(double_1_1)
-                } else if double_2_1.label != double_2_2.label {
-                    double_2_2.cmp(double_2_1)
-                } else {
-                    last2.cmp(last1)
-                }
-            }
-            (Hand::TwoPair { .. }, _) => Ordering::Greater,
-            (_, Hand::TwoPair { .. }) => Ordering::Less,
-            (
-                Hand::OnePair {
-                    double: double1,
-                    rest: rest1,
-                },
-                Hand::OnePair {
-                    double: double2,
-                    rest: rest2,
-                },
-            ) => {
-                if double1.label != double2.label {
-                    double2.cmp(double1)
-                } else {
-                    for i in 0..rest1.len() {
-                        if rest1[i] != rest2[i] {
-                            return rest2.cmp(rest1);
-                        }
-                    }
-                    Ordering::Equal
-                }
-            }
-            (Hand::OnePair { .. }, _) => Ordering::Greater,
-            (_, Hand::OnePair { .. }) => Ordering::Less,
-            (Hand::HighCard { cards: cards1 }, Hand::HighCard { cards: cards2 }) => {
-                for i in 0..cards1.len() {
-                    if cards1[i] != cards2[i] {
-                        return cards2.cmp(cards1);
-                    }
-                }
-                Ordering::Equal
-            }
+            Ordering::Equal
         }
     }
 }
@@ -219,6 +98,8 @@ impl FromStr for Hand {
     type Err = ParseError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut cards = s.chars().map(Card::from_char).collect::<Vec<Card>>();
+
+        let original_copy = cards.clone();
         cards.sort();
 
         let mut multiples: Vec<Multiples> = vec![];
@@ -260,47 +141,26 @@ impl FromStr for Hand {
 
         multiples.sort_by(|a, b| b.count.cmp(&a.count));
 
-        let hand = match &multiples[..] {
-            [first] => Hand::FiveOfAKind {
-                quint: first.card.clone(),
+        let handType = match &multiples[..] {
+            [_] => HandType::FiveOfAKind,
+            [first, _] => match first.count {
+                4 => HandType::FourOfAKind,
+                3 => HandType::FullHouse,
+                _ => HandType::HighCard,
             },
-            [first, second] => match first.count {
-                4 => Hand::FourOfAKind {
-                    quad: first.card.clone(),
-                    single: second.card.clone(),
-                },
-                3 => Hand::FullHouse {
-                    trip: first.card.clone(),
-                    doub: second.card.clone(),
-                },
-                _ => Hand::HighCard {
-                    cards: vec![first.card.clone(), second.card.clone()],
-                },
+            [first, _, _] => match first.count {
+                3 => HandType::ThreeOfAKind,
+                2 => HandType::TwoPair,
+                _ => HandType::HighCard,
             },
-            [first, second, third] => match first.count {
-                3 => Hand::ThreeOfAKind {
-                    trip: first.card.clone(),
-                    rest: vec![second.card.clone(), third.card.clone()],
-                },
-                2 => Hand::TwoPair {
-                    double_1: first.card.clone(),
-                    double_2: second.card.clone(),
-                    last: third.card.clone(),
-                },
-                _ => Hand::HighCard {
-                    cards: vec![first.card.clone(), second.card.clone()],
-                },
-            },
-            [first, second, third, fourth] => Hand::OnePair {
-                double: first.card.clone(),
-                rest: vec![second.card.clone(), third.card.clone(), fourth.card.clone()],
-            },
-            _ => Hand::HighCard {
-                cards: multiples.iter().map(|m| m.card.clone()).collect(),
-            },
+            [_, _, _, _] => HandType::OnePair,
+            _ => HandType::HighCard,
         };
 
-        Ok(hand)
+        Ok(Hand {
+            hand_type: handType,
+            cards: original_copy,
+        })
     }
 }
 
@@ -349,6 +209,7 @@ fn a() {
         .collect();
 
     rounds.sort();
+    rounds.reverse();
 
     let mut total = 0;
     for (rank, round) in rounds.iter().enumerate() {
