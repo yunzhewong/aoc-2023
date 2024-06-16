@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::filereading;
 
 pub fn run() {
