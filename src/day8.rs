@@ -110,8 +110,8 @@ fn check_encountered(encountered_positions: &Vec<(String, usize)>, current: &str
 
 #[derive(Clone, Debug)]
 struct Loop {
-    first_encounter: usize,
-    length: usize,
+    first_index: i32,
+    repeat_steps: i32,
 }
 
 fn loops_found(loops: &[Option<Loop>]) -> bool {
@@ -119,9 +119,12 @@ fn loops_found(loops: &[Option<Loop>]) -> bool {
     flattened.len() == loops.len()
 }
 
-fn valid_iteration(loops: &[Loop], iteration: usize) -> bool {
+fn valid_iteration(loops: &[Loop], iteration: i64) -> bool {
     for loop_info in loops {
-        if iteration - loop_info.first_encounter % loop_info.length != 0 {
+        let difference = iteration - loop_info.first_index as i64;
+        let div = loop_info.repeat_steps as i64;
+        let valid = difference % div == 0;
+        if !valid {
             return false;
         }
     }
@@ -146,7 +149,7 @@ fn b() {
     let mut loops: Vec<Option<Loop>> = vec![None; locations.len()];
     println!("{:?}", locations);
 
-    while !at_target_locations(&locations) {
+    loop {
         let command = get_round_access_command(&commands, command_index);
 
         for (i, location) in locations.iter_mut().enumerate() {
@@ -157,8 +160,8 @@ fn b() {
                     Some(first_encounter) => {
                         if loops[i].is_none() {
                             loops[i] = Some(Loop {
-                                first_encounter,
-                                length: command_index - first_encounter,
+                                first_index: first_encounter as i32,
+                                repeat_steps: (command_index - first_encounter) as i32,
                             })
                         }
                     }
@@ -174,43 +177,47 @@ fn b() {
         command_index += 1;
     }
 
-    let mut loops = loops.into_iter().map(|f| f.unwrap()).collect::<Vec<Loop>>();
+    let loops = loops.into_iter().map(|f| f.unwrap()).collect::<Vec<Loop>>();
 
-    let loop1 = &loops[0];
-    let loop2 = &loops[1];
+    let lengths = loops.iter().map(|f| f.repeat_steps).collect::<Vec<i32>>();
 
-    println!("{:?}, {:?}", loop1, loop2);
+    let lcm = {
+        let mut lcm: i64 = 1;
+        let mut unique_factors: Vec<i32> = vec![];
 
-    let length_diff = loop1.length as i32 - loop2.length as i32;
-    let start_diff = loop2.first_encounter as i32 - loop1.first_encounter as i32;
+        let factorised = lengths.iter().map(|f| factors(*f));
 
-    let div = {
-        let res = start_diff / length_diff;
-
-        if res > 0 {
-            res as usize
-        } else {
-            (start_diff - res).unsigned_abs() as usize
+        for factors in factorised {
+            println!("{:?}", factors);
+            for factor in factors {
+                if !unique_factors.contains(&factor) {
+                    lcm *= factor as i64;
+                    unique_factors.push(factor);
+                    println!("{lcm}");
+                }
+            }
         }
+
+        lcm
     };
 
-    println!("{length_diff} {start_diff} {div}");
+    println!("{:?}", lcm)
+}
 
-    let final_value = loop2.first_encounter + div * loop2.length;
+fn factors(val: i32) -> Vec<i32> {
+    let mut remainder = val;
+    let mut factors: Vec<i32> = vec![];
+    let mut increment = 2;
 
-    println!("{final_value}");
+    while increment < remainder {
+        while remainder % increment == 0 {
+            factors.push(increment);
+            remainder /= increment
+        }
+        increment += 1;
+    }
 
-    let remainder = (final_value - loop1.first_encounter) % loop1.length;
+    factors.push(remainder);
 
-    println!("{remainder}")
-
-    // start1, length1
-    // start2, length2
-
-    // 0 length1,
-    // start2 - start1, length2
-
-    // a * length1 mod length2 = start2 - start1
-
-    // a * length1 =  k * length2  +  (start2 - start1)
+    factors
 }
