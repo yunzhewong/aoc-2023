@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::{cmp::Ordering, str::FromStr};
 
 use crate::filereading;

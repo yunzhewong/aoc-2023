@@ -1,6 +1,6 @@
+#![allow(dead_code)]
 use core::panic;
 use std::{
-    cmp::max,
     collections::HashMap,
     fs::File,
     io::{BufReader, Lines},

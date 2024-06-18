@@ -71,7 +71,7 @@ fn a() {
 fn aggregate_numbers(numbers: Vec<i32>) -> i64 {
     let mut final_string = String::from("");
 
-    for (i, number) in numbers.iter().enumerate() {
+    for number in numbers.iter() {
         final_string.push_str(&number.to_string())
     }
 

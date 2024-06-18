@@ -1,4 +1,5 @@
 mod day1;
+mod day10;
 mod day2;
 mod day3;
 mod day5;
@@ -10,5 +11,5 @@ mod filereading;
 
 fn main() {
     // day1::run()
-    day9::run()
+    day10::run()
 }
