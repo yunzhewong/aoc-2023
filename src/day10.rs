@@ -1,13 +1,22 @@
+use core::panic;
+use std::collections::{hash_set, HashSet};
+
 use crate::filereading;
 
 pub fn run() {
-    a()
+    b()
 }
 
 #[derive(Debug, Clone, PartialEq)]
 struct Position {
     row_index: i32,
     col_index: i32,
+}
+
+impl Position {
+    fn str(&self) -> String {
+        format!("{}_{}", self.row_index, self.col_index)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -32,41 +41,49 @@ fn get_char(map: &[String], position: &Position) -> Option<char> {
         Some(res) => res.chars().nth(col),
     }
 }
+#[derive(Debug)]
+enum IncorrectEntry {
+    WrongDirection,
+    Ignore,
+}
 
-fn get_exit_direction(character: char, entry_direction: Direction) -> Option<Direction> {
+fn get_exit_direction(
+    character: char,
+    entry_direction: Direction,
+) -> Result<Direction, IncorrectEntry> {
     let direction = match character {
         '|' => match entry_direction {
             Direction::Up | Direction::Down => entry_direction,
-            _ => return None,
+            _ => return Err(IncorrectEntry::WrongDirection),
         },
         '-' => match entry_direction {
             Direction::Left | Direction::Right => entry_direction,
-            _ => return None,
+            _ => return Err(IncorrectEntry::WrongDirection),
         },
         'L' => match entry_direction {
             Direction::Down => Direction::Right,
             Direction::Left => Direction::Up,
-            _ => return None,
+            _ => return Err(IncorrectEntry::WrongDirection),
         },
         'J' => match entry_direction {
             Direction::Down => Direction::Left,
             Direction::Right => Direction::Up,
-            _ => return None,
+            _ => return Err(IncorrectEntry::WrongDirection),
         },
         '7' => match entry_direction {
             Direction::Up => Direction::Left,
             Direction::Right => Direction::Down,
-            _ => return None,
+            _ => return Err(IncorrectEntry::WrongDirection),
         },
         'F' => match entry_direction {
             Direction::Up => Direction::Right,
             Direction::Left => Direction::Down,
-            _ => return None,
+            _ => return Err(IncorrectEntry::WrongDirection),
         },
-        _ => return None,
+        _ => return Err(IncorrectEntry::Ignore),
     };
 
-    Some(direction)
+    Ok(direction)
 }
 
 fn move_in_direction(position: &Position, direction: &Direction) -> Position {
@@ -90,8 +107,8 @@ fn move_in_direction(position: &Position, direction: &Direction) -> Position {
     }
 }
 
-fn a() {
-    let lines = filereading::get_lines("src/inputs/day10.txt");
+fn read_map() -> (Vec<String>, Position) {
+    let lines = filereading::get_lines("src/inputs/day10e.txt");
 
     let mut map: Vec<String> = vec![];
     let mut start_position: Option<Position> = None;
@@ -107,8 +124,10 @@ fn a() {
         map.push(line);
     }
 
-    let start_position = start_position.unwrap();
+    (map, start_position.unwrap())
+}
 
+fn identify_first_move(map: &[String], start_position: &Position) -> (Position, Direction) {
     let options = [
         Direction::Down,
         Direction::Right,
@@ -118,37 +137,177 @@ fn a() {
 
     let mut first_step: Option<(Position, Direction)> = None;
     for option in options {
-        let next_position = move_in_direction(&start_position, &option);
-        let char = get_char(&map, &next_position);
+        let next_position = move_in_direction(start_position, &option);
+        let char = get_char(map, &next_position);
         if char.is_none() {
             continue;
         }
         let next_direction = get_exit_direction(char.unwrap(), option.clone());
 
-        if next_direction.is_some() {
+        if next_direction.is_ok() {
             first_step = Some((start_position.clone(), option))
         }
     }
 
-    let (mut current_pos, mut entry_dir) = first_step.unwrap();
+    first_step.unwrap()
+}
+
+fn a() {
+    let (map, start_position) = read_map();
+    let (mut current_position, mut current_direction) = identify_first_move(&map, &start_position);
+
     let mut step_count = 0;
 
     loop {
-        let next_position = move_in_direction(&current_pos, &entry_dir);
+        let next_position = move_in_direction(&current_position, &current_direction);
         if next_position == start_position {
             step_count += 1;
             break;
         }
         let char = get_char(&map, &next_position).unwrap();
 
-        // println!("{:?} {:?}", char, next_position);
-        let next_direction = get_exit_direction(char, entry_dir.clone()).expect("Expected");
+        let next_direction = get_exit_direction(char, current_direction.clone()).expect("Expected");
 
-        current_pos = next_position;
-        entry_dir = next_direction;
+        current_position = next_position;
+        current_direction = next_direction;
         step_count += 1;
     }
 
     let path = step_count / 2;
     println!("{path}");
+}
+
+fn identify_start_character(map: &[String], start_position: &Position) -> char {
+    let mut options: Vec<Direction> = vec![];
+
+    if check_matching_options(map, start_position, Direction::Down, &['|', 'L', 'J']) {
+        options.push(Direction::Down)
+    }
+
+    if check_matching_options(map, start_position, Direction::Up, &['|', '7', 'F']) {
+        options.push(Direction::Up)
+    }
+
+    if check_matching_options(map, start_position, Direction::Right, &['-', 'J', '7']) {
+        options.push(Direction::Right)
+    }
+
+    if check_matching_options(map, start_position, Direction::Left, &['F', 'L', '-']) {
+        options.push(Direction::Left)
+    }
+
+    match &options[..] {
+        [Direction::Down, Direction::Right] => 'F',
+        [Direction::Down, Direction::Up] => '|',
+        [Direction::Down, Direction::Left] => '7',
+        [Direction::Up, Direction::Right] => 'L',
+        [Direction::Up, Direction::Left] => 'J',
+        [Direction::Right, Direction::Left] => '-',
+        _ => panic!(),
+    }
+}
+
+fn check_matching_options(
+    map: &[String],
+    start_position: &Position,
+    direction: Direction,
+    options: &[char],
+) -> bool {
+    let next_position = move_in_direction(start_position, &direction);
+    let next_char = get_char(map, &next_position);
+
+    if let Some(res) = next_char {
+        if options.contains(&res) {
+            return true;
+        }
+    }
+    false
+}
+
+#[derive(Debug, Clone)]
+enum LoopState {
+    Border,
+    Inside,
+    Outside,
+}
+
+fn b() {
+    let (map, start_position) = read_map();
+    let (mut current_position, mut current_direction) = identify_first_move(&map, &start_position);
+    let mut hashset: HashSet<String> = HashSet::new();
+
+    loop {
+        let next_position = move_in_direction(&current_position, &current_direction);
+        if next_position == start_position {
+            break;
+        }
+
+        hashset.insert(next_position.str());
+        let char = get_char(&map, &next_position).unwrap();
+
+        let next_direction = get_exit_direction(char, current_direction.clone()).expect("Expected");
+
+        current_position = next_position;
+        current_direction = next_direction;
+    }
+
+    let start_char = identify_start_character(&map, &start_position);
+    hashset.insert(start_position.str());
+
+    for (row_index, line) in map.iter().enumerate() {
+        let mut previous = LoopState::Outside;
+        let mut state = LoopState::Outside;
+        println!("NEW LINE");
+        for (col_index, char) in line.chars().enumerate() {
+            let position = Position {
+                row_index: row_index as i32,
+                col_index: col_index as i32,
+            };
+
+            println!("{char} {:?}", state);
+
+            let on_loop = hashset.contains(&position.str());
+
+            if !on_loop {
+                continue;
+            }
+
+            let mut check_char = char;
+            if check_char == 'S' {
+                check_char = start_char;
+            }
+
+            let next_direction = get_exit_direction(check_char, Direction::Right);
+
+            state = match next_direction {
+                Ok(dir) => match dir {
+                    Direction::Right => LoopState::Border,
+                    _ => match state {
+                        LoopState::Inside => LoopState::Outside,
+                        LoopState::Outside => LoopState::Inside,
+                        LoopState::Border => previous.clone(),
+                    },
+                },
+                Err(err) => match err {
+                    IncorrectEntry::WrongDirection => {
+                        if ['F', 'J'].contains(&check_char) {
+                            LoopState::Border
+                        } else {
+                            match state {
+                                LoopState::Inside => LoopState::Outside,
+                                LoopState::Outside => LoopState::Inside,
+                                _ => panic!(),
+                            }
+                        }
+                    }
+                    _ => state,
+                },
+            };
+
+            match state {
+                LoopState::Border => {}
+                _ => previous = state.clone(),
+            }
+        }
+    }
 }
