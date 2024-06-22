@@ -108,7 +108,7 @@ fn move_in_direction(position: &Position, direction: &Direction) -> Position {
 }
 
 fn read_map() -> (Vec<String>, Position) {
-    let lines = filereading::get_lines("src/inputs/day10e.txt");
+    let lines = filereading::get_lines("src/inputs/day10.txt");
 
     let mut map: Vec<String> = vec![];
     let mut start_position: Option<Position> = None;
@@ -254,8 +254,10 @@ fn b() {
     let start_char = identify_start_character(&map, &start_position);
     hashset.insert(start_position.str());
 
+    let mut count = 0;
     for (row_index, line) in map.iter().enumerate() {
-        let mut previous = LoopState::Outside;
+        let mut previous_char = '.';
+        let mut previous_state = LoopState::Outside;
         let mut state = LoopState::Outside;
         println!("NEW LINE");
         for (col_index, char) in line.chars().enumerate() {
@@ -264,11 +266,15 @@ fn b() {
                 col_index: col_index as i32,
             };
 
-            println!("{char} {:?}", state);
-
             let on_loop = hashset.contains(&position.str());
 
+            // println!("{char} {:?}", state);
+
             if !on_loop {
+                if let LoopState::Inside = state {
+                    count += 1;
+                }
+
                 continue;
             }
 
@@ -277,37 +283,57 @@ fn b() {
                 check_char = start_char;
             }
 
-            let next_direction = get_exit_direction(check_char, Direction::Right);
-
-            state = match next_direction {
-                Ok(dir) => match dir {
-                    Direction::Right => LoopState::Border,
-                    _ => match state {
-                        LoopState::Inside => LoopState::Outside,
-                        LoopState::Outside => LoopState::Inside,
-                        LoopState::Border => previous.clone(),
-                    },
+            state = match check_char {
+                '|' => match state {
+                    LoopState::Inside => LoopState::Outside,
+                    LoopState::Outside => LoopState::Inside,
+                    _ => panic!(),
                 },
-                Err(err) => match err {
-                    IncorrectEntry::WrongDirection => {
-                        if ['F', 'J'].contains(&check_char) {
-                            LoopState::Border
+                '-' => match state {
+                    LoopState::Border => LoopState::Border,
+                    _ => panic!(),
+                },
+                'L' | 'F' => {
+                    previous_char = check_char;
+                    previous_state = state.clone();
+                    match state {
+                        LoopState::Outside => LoopState::Border,
+                        LoopState::Inside => LoopState::Border,
+                        _ => panic!(),
+                    }
+                }
+                'J' => match state {
+                    LoopState::Border => {
+                        if previous_char == 'L' {
+                            previous_state.clone()
                         } else {
-                            match state {
+                            match previous_state.clone() {
                                 LoopState::Inside => LoopState::Outside,
                                 LoopState::Outside => LoopState::Inside,
                                 _ => panic!(),
                             }
                         }
                     }
-                    _ => state,
+                    _ => panic!(),
                 },
+                '7' => match state {
+                    LoopState::Border => {
+                        if previous_char == 'F' {
+                            previous_state.clone()
+                        } else {
+                            match previous_state.clone() {
+                                LoopState::Inside => LoopState::Outside,
+                                LoopState::Outside => LoopState::Inside,
+                                _ => panic!(),
+                            }
+                        }
+                    }
+                    _ => panic!(),
+                },
+                _ => state,
             };
-
-            match state {
-                LoopState::Border => {}
-                _ => previous = state.clone(),
-            }
         }
     }
+
+    println!("{count}")
 }
