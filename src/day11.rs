@@ -3,17 +3,17 @@ use std::collections::HashSet;
 use crate::filereading;
 
 pub fn run() {
-    a()
+    b()
 }
 #[derive(Debug)]
 struct Universe {
     orig_row: i32,
     orig_col: i32,
-    row: i32,
-    col: i32,
+    row: i64,
+    col: i64,
 }
 
-fn a() {
+fn identify_distances(expansion_rate: i64) {
     let lines = filereading::get_lines("src/inputs/day11.txt");
     let line_strings = lines.map_while(Result::ok).collect::<Vec<String>>();
 
@@ -39,8 +39,8 @@ fn a() {
                 universes.push(Universe {
                     orig_row: row_index as i32,
                     orig_col: col_index as i32,
-                    row: row_index as i32,
-                    col: col_index as i32,
+                    row: row_index as i64,
+                    col: col_index as i64,
                 })
             }
         }
@@ -49,7 +49,7 @@ fn a() {
     for row in rows {
         for universe in universes.iter_mut() {
             if universe.orig_row > (row as i32) {
-                universe.row += 1;
+                universe.row += expansion_rate - 1;
             }
         }
     }
@@ -57,7 +57,7 @@ fn a() {
     for col in cols {
         for universe in universes.iter_mut() {
             if universe.orig_col > (col as i32) {
-                universe.col += 1;
+                universe.col += expansion_rate - 1;
             }
         }
     }
@@ -74,4 +74,12 @@ fn a() {
         }
     }
     println!("{total}");
+}
+
+fn a() {
+    identify_distances(2);
+}
+
+fn b() {
+    identify_distances(1_000_000);
 }
