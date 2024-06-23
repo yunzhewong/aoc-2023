@@ -1,5 +1,6 @@
+#![allow(dead_code)]
 use core::panic;
-use std::collections::{hash_set, HashSet};
+use std::collections::HashSet;
 
 use crate::filereading;
 
@@ -259,7 +260,6 @@ fn b() {
         let mut previous_char = '.';
         let mut previous_state = LoopState::Outside;
         let mut state = LoopState::Outside;
-        println!("NEW LINE");
         for (col_index, char) in line.chars().enumerate() {
             let position = Position {
                 row_index: row_index as i32,
@@ -267,8 +267,6 @@ fn b() {
             };
 
             let on_loop = hashset.contains(&position.str());
-
-            // println!("{char} {:?}", state);
 
             if !on_loop {
                 if let LoopState::Inside = state {
